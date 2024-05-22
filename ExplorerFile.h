@@ -1,34 +1,27 @@
-#include <stdlib.h>
-#include <cstdint>
+#include <string>
+#include <filesystem>
 
 #ifndef Explorer_File_h
-#define Explorer_File_h
+#define Explorer_FIle_h
 
-class ExplorerFile
-{
-private:
-
-    // identification
-	uint64_t file_id;
-	char *file_path;
-    uint8_t file_type;
-
-    // user added tags
-	char *tags;
-    uint8_t num_tags;
-
-    // bpm
-    uint16_t pred_bpm;
-    uint16_t entr_bpm;
-	
-    // key
-	uint8_t  pred_key;
-	uint8_t  entr_key;
-
-    // instruments
-	uint8_t  pred_instr;
-	uint8_t  entr_instr;
-
+struct ExplorerFile {
+    std::string file_path;
+    std::string file_name;
+    int file_size;
+    
+    int duration;
+    
+    int num_user_tags;
+    std::string user_tags;
+    
+    int num_auto_tags;
+    std::string auto_tags;
+    
+    int user_bpm;
+    int user_key;
+    
+    int auto_bpm;
+    int auto_key;
 };
 
 #endif
