@@ -3,9 +3,10 @@
 
 #include "UIState.h"
 
-class UI {
-public:
-    UIState state;
-};
+std::string format_string (std::string str, size_t length);
 
-#endif
+void render_ui (UIState *ui_state);
+
+void print_search_results (std::vector<struct ExplorerFile> results, int n);
+
+#endif // UI_H
