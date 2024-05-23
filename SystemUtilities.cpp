@@ -1,9 +1,4 @@
-#ifndef SYSTEM_UTILITIES_H
-#define SYSTEM_UTILITIES_H
-
-#include <cstdio>
-#include <cstdlib>
-#include <cstdarg>
+#include "SystemUtilities.h"
 
 void panicf [[noreturn]] (const char* msg, ...) {
     va_list args;
@@ -13,4 +8,6 @@ void panicf [[noreturn]] (const char* msg, ...) {
     std::exit(EXIT_FAILURE);
 }
 
-#endif
+void quit (void) {
+    std::exit(EXIT_SUCCESS);
+}
