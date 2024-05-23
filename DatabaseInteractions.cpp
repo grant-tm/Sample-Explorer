@@ -1,19 +1,4 @@
-#ifndef DATABASE_INTERACTIONS_H
-#define DATABASE_INTERACTIONS_H
-
-#include <iostream>
-#include <string>
-#include <filesystem>
-#include "sqlite3.h"
-#include "ThreadSafeQueue.h"
-#include "ExplorerFile.h"
-#include "system_utilities.h"
-
-namespace fs = std::filesystem;
-
-//==============================================================================
-// Database Interactions
-//==============================================================================
+#include "DatabaseInteractions.h"
 
 // checks if the given database table exists
 bool db_table_valid (sqlite3* db, const std::string& table_name) {
@@ -32,7 +17,7 @@ bool db_table_valid (sqlite3* db, const std::string& table_name) {
 }
 
 // print the number of rows in a databse table
-void db_print_num_rows (sqlite3 *db, const std::string& table_name) {
+int db_get_num_rows (sqlite3 *db, const std::string& table_name) {
 
     // prepare statement to select the count of all rows in the table
     sqlite3_stmt* stmt;
@@ -45,8 +30,8 @@ void db_print_num_rows (sqlite3 *db, const std::string& table_name) {
     // execute the SELECT command
     if (sqlite3_step(stmt) == SQLITE_ROW) [[likely]] {
         int row_count = sqlite3_column_int(stmt, 0);
-        fprintf(stderr, "Number of rows: %d\n", row_count);
         sqlite3_finalize(stmt);
+        return row_count;
     } else [[unlikely]] {
         sqlite3_finalize(stmt);
         panicf("db_print_num_rows: Failed to execute SELECT COUNT(*)\n.");
@@ -208,4 +193,59 @@ void db_insert_files (sqlite3 *db,
     sqlite3_finalize(stmt);
 }
 
-#endif
+// Function to search files by name
+std::vector<ExplorerFile> db_search_files_by_name (sqlite3* db, 
+                                            const std::string& search_query) {
+    
+    sqlite3_stmt* stmt;
+    std::string sql = "SELECT "\
+                    "file_path, "\
+                    "file_name, "\
+                    "file_size, "\
+                    "duration, "\
+                    "num_user_tags, "\
+                    "user_tags, "\
+                    "num_auto_tags, "\
+                    "auto_tags, "\
+                    "user_bpm, "\
+                    "user_key, "\
+                    "auto_bpm, "\
+                    "auto_key "\
+                    "FROM audio_files WHERE file_name LIKE ?;";
+    
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        panicf("search_files_by_name: Failed to prepare statement.\n");
+    }
+    
+    // Bind the search query with wildcard characters for pattern matching
+    std::string query_param = "%" + search_query + "%";
+    sqlite3_bind_text(stmt, 1, query_param.c_str(), -1, SQLITE_STATIC);
+    
+    // Execute the statement and process the results
+    std::vector<ExplorerFile> results;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        struct ExplorerFile file;
+        
+        file.file_path = reinterpret_cast<const char*>(
+            sqlite3_column_text(stmt, 0));
+        file.file_name = reinterpret_cast<const char*>(
+            sqlite3_column_text(stmt, 1));
+        file.file_size = sqlite3_column_int(stmt, 2);
+        file.duration = sqlite3_column_int(stmt, 3);
+        file.num_user_tags = sqlite3_column_int(stmt, 4);
+        file.user_tags = reinterpret_cast<const char*>(
+            sqlite3_column_text(stmt, 5));
+        file.num_auto_tags = sqlite3_column_int(stmt, 6);
+        file.auto_tags = reinterpret_cast<const char*>(
+            sqlite3_column_text(stmt, 7));
+        file.user_bpm = sqlite3_column_int(stmt, 8);
+        file.user_key = sqlite3_column_int(stmt, 9);
+        file.auto_bpm = sqlite3_column_int(stmt, 10);
+        file.auto_key = sqlite3_column_int(stmt, 11);
+
+        results.push_back(file);
+    }
+    
+    sqlite3_finalize(stmt);
+    return results;
+}
