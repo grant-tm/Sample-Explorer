@@ -1,8 +1,8 @@
-#include <string>
-#include <filesystem>
+#ifndef EXPLORER_FILE_H
+#define EXPLORER_FILE_H
 
-#ifndef Explorer_File_h
-#define Explorer_FIle_h
+// Standard Library Inclusions
+#include <string>
 
 struct ExplorerFile {
     std::string file_path;
