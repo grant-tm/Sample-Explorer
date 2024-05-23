@@ -1,22 +1,4 @@
-#ifndef FILE_PROCESSOR_H
-#define FILE_PROCESSOR_H
-
-// #include <iostream>
-// #include <cstdio>
-// #include <cstdlib>
-#include <string>
-#include <vector>
-#include <filesystem>
-// #include <cstdarg>
-// #include <chrono>
-#include <omp.h>
-#include "sqlite3.h"
-#include "database_interactions.h"
-#include "ExplorerFile.h"
-
-namespace fs = std::filesystem;
-
-#define TRANSACTION_SIZE 2048
+#include "FileProcessing.h"
 
 // These delimiters are used to automatically generate tags from filenames
 constexpr inline bool char_is_delimiter (char ch) {
@@ -243,5 +225,3 @@ void scan_directory (sqlite3 *db, const fs::path& dir_path) {
     }
     
 }
-
-#endif
