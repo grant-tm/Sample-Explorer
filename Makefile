@@ -16,7 +16,8 @@ SRCS = app.cpp \
        FileProcessing.cpp \
        SystemUtilities.cpp \
        UI.cpp \
-       UIState.cpp
+       UIState.cpp \
+	   Controls.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -28,7 +29,8 @@ HDRS = DatabaseInteractions.h \
        SystemUtilities.h \
        ThreadSafeQueue.h \
        UI.h \
-       UIState.h
+       UIState.h \
+	   Controls.h
 
 # Default target
 all: $(TARGET)
