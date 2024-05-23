@@ -134,7 +134,7 @@ void db_print_num_rows (sqlite3 *db, const std::string& table_name) {
     // execute the SELECT command
     if (sqlite3_step(stmt) == SQLITE_ROW) [[likely]] {
         int row_count = sqlite3_column_int(stmt, 0);
-        fprintf(stdout, "Number of rows: %d\n", row_count);
+        fprintf(stderr, "Number of rows: %d\n", row_count);
         sqlite3_finalize(stmt);
     } else [[unlikely]] {
         sqlite3_finalize(stmt);
@@ -169,14 +169,14 @@ void db_print_n_rows(sqlite3* db, const std::string& table_name, int num_rows) {
             const char* col_text = (const char*)sqlite3_column_text(stmt, col);
             
             // print the column contents
-            fprintf(stdout, "%s: ", col_name);
+            fprintf(stderr, "%s: ", col_name);
             if (col_text) [[likely]] {
-                fprintf(stdout, "%s ", col_name);
+                fprintf(stderr, "%s ", col_name);
             } else {
-                fprintf(stdout, "NULL ");
+                fprintf(stderr, "NULL ");
             }
         }
-        fprintf(stdout, "\n");
+        fprintf(stderr, "\n");
     }
 }
 
@@ -496,13 +496,11 @@ int main (int argc, char* argv[]) {
     scan_directory(db, dir_path);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
-    fprintf(stdout, "Scan duration: %f\n", duration.count() / 1000);
+    fprintf(stderr, "Scan duration: %f\n", duration.count() / 1000);
 
     if (db_table_valid(db, "audio_files")) {
         db_print_num_rows(db, "audio_files");
     }
-    
-    // db_print_n_rows(db, "audio_files", 5);
 
     sqlite3_close(db);
 
