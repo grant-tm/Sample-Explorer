@@ -1,14 +1,68 @@
-#include "file_processor.h"
-#include "system_utilities.h"
-#include "database_interactions.h"
 
+// External Library Inclusions
+#include <windows.h>
+
+// Project Inclusions
+#include "FileProcessing.h"
+#include "SystemUtilities.h"
+#include "DatabaseInteractions.h"
+#include "ThreadSafeQueue.h"
+#include "UI.h"
+
+// definitions
 namespace fs = std::filesystem;
+#define UI_SEARCH_WIDTH 28
+#define UI_RESULT_WIDTH 28
+#define UI_TAG_WIDTH 21
 
 // COMPILE: g++ app.cpp -o app -std=c++17 -fopenmp -lstdc++fs -lsqlite3 -I\Users\Grant\Documents\SQLite -Wall -Wpedantic
 
 //==============================================================================
 // UI
 //==============================================================================
+
+std::string format_string (std::string str, size_t length) {
+    if (str.length() <= length) {
+        return str + std::string(length - str.length(), ' ');
+    } else {
+        return str.substr(0, length-3) + "...";
+    }
+}
+
+void render_ui (UIState *ui_state) {
+
+    std::system("cls");
+
+    std::string display = format_string(ui_state->search_buffer, UI_SEARCH_WIDTH);
+
+    std::string result[5];
+    for(size_t i=0; i<5; i++) {
+        if(i >= ui_state->files.size()) {
+            result[i] = format_string("", UI_RESULT_WIDTH);
+        } else {
+            int index = ui_state->file_scroll;
+            struct ExplorerFile file = ui_state->files[index];
+            result[i] = format_string(file.file_name, UI_TAG_WIDTH);
+        }
+    }
+
+    std::string tags[5];
+    for(int i=0; i<5; i++) {
+        tags[i] = format_string("example_tag", 21);
+    }
+    
+    std::string ui = 
+    "|==============================|=======================|\n"\
+    "| " + display              + " | " + tags[0]       + " |\n"\
+    "|==============================| " + tags[1]       + " |\n"\
+    "| " + result[0]            + " | " + tags[2]       + " |\n"\
+    "| " + result[1]            + " | " + tags[3]       + " |\n"\
+    "| " + result[2]            + " | " + tags[4]       + " |\n"\
+    "| " + result[3]            + " |===========|===========|\n"\
+    "| " + result[4]            + " | Key: ---- | BPM: ---- |\n"\
+    "|==============================|===========|===========|\n";
+    fprintf(stdout, "%s", ui.c_str());
+}
 
 void print_search_results (std::vector<struct ExplorerFile> results, int n) {
     int print_limit = static_cast<int>(results.size()) > n ? n : results.size();
@@ -18,66 +72,61 @@ void print_search_results (std::vector<struct ExplorerFile> results, int n) {
     return;
 }
 
-// Function to search files by name
-std::vector<ExplorerFile> search_files_by_name (sqlite3* db, 
-                                            const std::string& search_query) {
-    
-    sqlite3_stmt* stmt;
-    std::string sql = "SELECT "\
-                    "file_path, "\
-                    "file_name, "\
-                    "file_size, "\
-                    "duration, "\
-                    "num_user_tags, "\
-                    "user_tags, "\
-                    "num_auto_tags, "\
-                    "auto_tags, "\
-                    "user_bpm, "\
-                    "user_key, "\
-                    "auto_bpm, "\
-                    "auto_key "\
-                    "FROM audio_files WHERE file_name LIKE ?;";
-    
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
-        panicf("search_files_by_name: Failed to prepare statement.\n");
-    }
-    
-    // Bind the search query with wildcard characters for pattern matching
-    std::string query_param = "%" + search_query + "%";
-    sqlite3_bind_text(stmt, 1, query_param.c_str(), -1, SQLITE_STATIC);
-    
-    // Execute the statement and process the results
-    std::vector<ExplorerFile> results;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        struct ExplorerFile file;
-        
-        file.file_path = reinterpret_cast<const char*>(
-            sqlite3_column_text(stmt, 0));
-        file.file_name = reinterpret_cast<const char*>(
-            sqlite3_column_text(stmt, 1));
-        file.file_size = sqlite3_column_int(stmt, 2);
-        file.duration = sqlite3_column_int(stmt, 3);
-        file.num_user_tags = sqlite3_column_int(stmt, 4);
-        file.user_tags = reinterpret_cast<const char*>(
-            sqlite3_column_text(stmt, 5));
-        file.num_auto_tags = sqlite3_column_int(stmt, 6);
-        file.auto_tags = reinterpret_cast<const char*>(
-            sqlite3_column_text(stmt, 7));
-        file.user_bpm = sqlite3_column_int(stmt, 8);
-        file.user_key = sqlite3_column_int(stmt, 9);
-        file.auto_bpm = sqlite3_column_int(stmt, 10);
-        file.auto_key = sqlite3_column_int(stmt, 11);
-
-        results.push_back(file);
-    }
-    
-    sqlite3_finalize(stmt);
-    return results;
-}
-
 //==============================================================================
 // MAIN
 //==============================================================================
+
+inline bool is_pressed (char c) {
+    return GetAsyncKeyState(c) & 0x8000;
+}
+
+char detect_commands (void) {
+    // Check if a specific key is pressed
+    if(is_pressed(VK_CONTROL)) {
+        if (is_pressed('S')) {
+            return 19;
+        }
+        else if (is_pressed('R')) {
+            return 18;
+        }
+        else if (is_pressed('T')) {
+            return 20;
+        }
+        else if (is_pressed('Q')) {
+            return 17;
+        }
+    }
+    return 0;
+}
+
+char vk_to_char (int key) {
+    if(key == 0x0D) {
+        return '\n';
+    }
+    if(key == 0x08) {
+        return '\b';
+    }
+    if(key == 0x2E) {
+        return 127;
+    }
+    return key;
+}
+
+char keyboard_listener (void) {
+    while (1) {
+        char comm = detect_commands();
+        if(comm != 0) {
+            return comm;
+        }
+        for (int key = 8; key <= 255; ++key) {
+            if (is_pressed(key) && key != 17) {
+                printf("Key: %d", key);
+                return vk_to_char(key);
+            }
+        }
+        Sleep(10);
+    }
+}
 
 int main (int argc, char* argv[]) {
    
@@ -86,37 +135,30 @@ int main (int argc, char* argv[]) {
         panicf("Cannot open database.\n");
     }
 
-    if (argc >= 2) {
-        db_initialize(db);
-        if (db_table_valid(db, "audio_files")) {
-            db_print_num_rows(db, "audio_files");
-        }
+    db_initialize(db);
+    const std::string dir_path = "D:/Samples";
 
-        const std::string dir_path = argv[1];
+    fprintf(stderr, "Starting Scan\n");
+    auto start = std::chrono::high_resolution_clock::now();
+    //scan_directory(db, dir_path);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
+    fprintf(stderr, "Scan duration: %f\n", duration.count() / 1000);
 
-        fprintf(stderr, "Starting Scan\n");
-        auto start = std::chrono::high_resolution_clock::now();
-        scan_directory(db, dir_path);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> duration = end - start;
-        fprintf(stderr, "Scan duration: %f\n", duration.count() / 1000);
-
-        if (db_table_valid(db, "audio_files")) {
-            db_print_num_rows(db, "audio_files");
-        }
+    if (db_table_valid(db, "audio_files")) {
+        int num_rows = db_get_num_rows(db, "audio_files");
+        fprintf(stderr, "Number of rows: %d\n", num_rows);
     }
 
+    UIState ui_state;
+    render_ui(&ui_state);
     while(1) {
-        fprintf(stdout, "Search: ");
-        std::string query;
-        std::getline(std::cin, query);
-        if(query == "quit" || query == "exit"){
-            break;
-        }
-        print_search_results(search_files_by_name(db, query), 10);
+        Sleep(50);
+        char c = keyboard_listener();
+        ui_state.control_queue.push(c);
+        ui_state.process_inputs();
+        render_ui(&ui_state);
     }
-
-    sqlite3_close(db);
 
     return 0;
 }
