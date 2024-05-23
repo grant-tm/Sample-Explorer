@@ -566,6 +566,9 @@ int main (int argc, char* argv[]) {
         fprintf(stdout, "Search: ");
         std::string query;
         std::getline(std::cin, query);
+        if(query == "quit" || query == "exit"){
+            break;
+        }
         print_search_results(search_files_by_name(db, query), 10);
     }
 
