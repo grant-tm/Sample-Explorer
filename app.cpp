@@ -562,9 +562,12 @@ int main (int argc, char* argv[]) {
         }
     }
 
-    print_search_results(search_files_by_name(db, "break"), 10);
-    print_search_results(search_files_by_name(db, "keys"), 10);
-    print_search_results(search_files_by_name(db, "V_RIOT"), 10);
+    while(1) {
+        fprintf(stdout, "Search: ");
+        std::string query;
+        std::getline(std::cin, query);
+        print_search_results(search_files_by_name(db, query), 10);
+    }
 
     sqlite3_close(db);
 
