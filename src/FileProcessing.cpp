@@ -1,4 +1,4 @@
-#include "FileProcessing.h"
+#include "..\inc\FileProcessing.h"
 
 // These delimiters are used to automatically generate tags from filenames
 constexpr inline bool char_is_delimiter (char ch) {
@@ -148,7 +148,6 @@ void queue_files_for_processing (sqlite3 *db, const fs::path& dir_path,
     // see description of find_sub_dirs for overview of limitations.
     std::vector<fs::path> sub_dirs = find_sub_dirs(dir_path);
     int num_sub_dirs = sub_dirs.size();
-    fprintf(stderr, "Top-Level Sub-directories: %d\n", num_sub_dirs);
 
     // enable "producing" flag to prevent consumer from exiting early
     files_to_process->start_producing();
@@ -176,12 +175,19 @@ void process_queued_files (sqlite3* db,
         ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
 
     insrt_queue->start_producing();
+    int num_scanned = 0;
     while (!proc_queue->empty() || proc_queue->is_producing()) {
+        
         fs::directory_entry file;
         proc_queue->wait_pop(file);
+        
         if (!file.path().empty()) {
             struct ExplorerFile *procd_file = process_file(db, file);
             insrt_queue->push(procd_file);
+
+            if(++num_scanned % 64 == 0) {
+                fprintf(stderr, "\r%d", num_scanned);
+            }
         }
     }
     insrt_queue->stop_producing();
@@ -189,7 +195,7 @@ void process_queued_files (sqlite3* db,
 
 void insert_processed_files (sqlite3* db, 
     ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
-
+    
     while (!insrt_queue->empty() || insrt_queue->is_producing()) {
         if(insrt_queue->size() >= TRANSACTION_SIZE) {
             db_insert_files(db, insrt_queue);

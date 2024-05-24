@@ -1,4 +1,4 @@
-#include "DatabaseInteractions.h"
+#include "..\inc\DatabaseInteractions.h"
 
 // checks if the given database table exists
 bool db_table_valid (sqlite3* db, const std::string& table_name) {

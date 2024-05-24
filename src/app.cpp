@@ -1,15 +1,13 @@
 // Project Inclusions
-#include "FileProcessing.h"
-#include "SystemUtilities.h"
-#include "DatabaseInteractions.h"
-#include "Controls.h"
-#include "UI.h"
-#include "ThreadSafeQueue.h"
+#include "..\inc\FileProcessing.h"
+#include "..\inc\SystemUtilities.h"
+#include "..\inc\DatabaseInteractions.h"
+#include "..\inc\Controls.h"
+#include "..\inc\UI.h"
+#include "..\inc\ThreadSafeQueue.h"
 
 // definitions
 namespace fs = std::filesystem;
-
-// COMPILE: g++ app.cpp -o app -std=c++17 -fopenmp -lstdc++fs -lsqlite3 -I\Users\Grant\Documents\SQLite -Wall -Wpedantic
 
 void fetch_results (sqlite3* db, UIState *ui_state) {
     if (ui_state->search_exec) {
@@ -28,9 +26,11 @@ int main (int argc, char* argv[]) {
     db_initialize(db);
     const std::string dir_path = "D:/Samples";
 
-    fprintf(stderr, "Starting Scan\n");
+    fprintf(stderr, "Scanning Files...\n");
     auto start = std::chrono::high_resolution_clock::now();
+
     scan_directory(db, dir_path);
+    
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
     fprintf(stderr, "Scan duration: %f\n", duration.count() / 1000);
