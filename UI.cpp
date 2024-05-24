@@ -15,8 +15,6 @@ std::string format_string (std::string str, size_t length) {
 
 void render_ui (UIState *ui_state) {
 
-    std::system("cls");
-
     std::string display = format_string(ui_state->search_buffer, UI_SEARCH_WIDTH);
 
     std::string result[5];
@@ -26,13 +24,14 @@ void render_ui (UIState *ui_state) {
         } else {
             int index = ui_state->file_scroll;
             struct ExplorerFile file = ui_state->files[index];
-            result[i] = format_string(file.file_name, UI_TAG_WIDTH);
+            result[i] = format_string(file.file_name, UI_RESULT_WIDTH
+            );
         }
     }
 
     std::string tags[5];
     for(int i=0; i<5; i++) {
-        tags[i] = format_string("example_tag", 21);
+        tags[i] = format_string(" ", 21);
     }
     
     std::string ui = 
@@ -45,6 +44,10 @@ void render_ui (UIState *ui_state) {
     "| " + result[3]            + " |===========|===========|\n"\
     "| " + result[4]            + " | Key: ---- | BPM: ---- |\n"\
     "|==============================|===========|===========|\n";
+    std::system("cls");
+    fprintf(stdout, "Frame: %c\n", ui_state->frame);
+    fprintf(stdout, "Search Buffer: %s\n", ui_state->search_buffer.c_str());
+    fprintf(stdout, "Cursor: %ds\n", ui_state->search_cursor);
     fprintf(stdout, "%s", ui.c_str());
 }
 
@@ -54,4 +57,17 @@ void print_search_results (std::vector<struct ExplorerFile> results, int n) {
         fprintf(stderr, "[%d] %s\n", i, results[i].file_name.c_str());
     }
     return;
+}
+
+void ui_hide_cursor (void) {
+    // Get the console handle
+    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    
+    // Get the current console cursor information
+    CONSOLE_CURSOR_INFO cursorInfo;
+    GetConsoleCursorInfo(consoleHandle, &cursorInfo);
+    
+    // Set the cursor visibility to false
+    cursorInfo.bVisible = FALSE;
+    SetConsoleCursorInfo(consoleHandle, &cursorInfo);
 }
