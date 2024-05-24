@@ -1,24 +1,39 @@
 #include "UIState.h"
 
 void UIState::process_inputs (void) {
-    while(!control_queue.empty()) {
-        char c;
-        control_queue.wait_pop(c);
-        control_dispatch(c);
+    while (!control_queue->empty()) {
+        char input_container;
+        control_queue->wait_pop(input_container);
+        this->input_dispatch(input_container);
     }
 }
 
-void UIState::control_dispatch (char c) {
-    command_handler(c);
-    switch(this->frame) {
+inline bool UIState::is_command (char input) {
+    int character = static_cast<int>(input);
+    if (character == KBD_CTRL_S || character == KBD_CTRL_R || 
+        character == KBD_CTRL_T || character == KBD_CTRL_Q) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void UIState::input_dispatch (char input) {
+    
+    if(this->is_command(input)){
+        command_handler(input);
+        return;
+    }
+    
+    switch (this->frame) {
         case 's':
-            search_control_handler(c);
+            search_control_handler(input);
             return;
         case 'r':
-            //result_control_handler(c);
+            //result_control_handler(input);
             return;
         case 't':
-            //tags_control_handler(c);
+            //tags_control_handler(input);
             return;
         case 'q':
             //quit();
@@ -28,18 +43,18 @@ void UIState::control_dispatch (char c) {
     }
 }
 
-void UIState::command_handler (char c) {
-    switch(c) {
-        case 19: // Ctrl-S
+void UIState::command_handler (char commmand) {
+    switch(commmand) {
+        case KBD_CTRL_S: // Ctrl-S
             this->frame = 's';
             return;
-        case 18: // Ctrl-R
+        case KBD_CTRL_R: // Ctrl-R
             this->frame = 'r';
             return;
-        case 20: // Ctrl-T 
+        case KBD_CTRL_T: // Ctrl-T 
             this->frame = 't';
             return;
-        case 17: // Ctrl-Q
+        case KBD_CTRL_Q: // Ctrl-Q
             this->frame = 'q';
             return;
         default:
@@ -52,43 +67,38 @@ void UIState::command_handler (char c) {
 //==============================================================================
 
 void UIState::search_control_handler (char c) {
-    fprintf(stderr, "search_control_handler: %d\n", c);
-    //std::string prev_query = search_query;
-    update_search_buffer(c);
-    // if (search_query != prev_query) {
-    //     return;
-    // }
+    if (c == '\n') {
+        this->frame = 'r';
+    } else {
+        update_search_buffer(c);
+    }
 }
 
 // add a character to the serach buffer
 void UIState::update_search_buffer (char c) {    
-    
-    int character = c;
-    
     // backspace
-    if (character == 8) {
-        printf("erase\n");
-        printf("cursor: %d\n", search_cursor);
+    if (c == '\b') {
         if(search_cursor > 0) {
             search_buffer.erase(--search_cursor);
         }
     }
-    // delete
-    else if (character == 127) {
-        if(size_t(search_cursor) < search_buffer.length()-1) {
-            search_buffer.erase(search_cursor + 1);
-        }
+
+    // Del Key: delete character in front of cursor
+    // TODO: Cursor scroll
+    else if (c == 127) {
+        // if(size_t(search_cursor) < search_buffer.length()-1) {
+        //     search_buffer.erase(search_cursor + 1);
+        // }
     }
-    // enter
-    else if (character == 10) {
-        search_query = search_buffer;
-    }
+
     // printable characters
     else if (std::isprint(c)) {
         search_buffer.reserve(search_buffer.length() + 1);
         search_buffer.push_back(c);
         search_cursor++;
     }
+
+    this->search_exec = true;
 }
 
 //==============================================================================
