@@ -2,6 +2,8 @@
 #define UI_H
 
 #include "UIState.h"
+#include <iostream>
+#include <string>
 #include <windows.h>
 
 std::string format_string (std::string str, size_t length);

@@ -1,8 +1,8 @@
 #include "..\inc\UI.h"
 
-#define UI_SEARCH_WIDTH 28
-#define UI_RESULT_WIDTH 28
-#define UI_TAG_WIDTH 21
+#define UI_SEARCH_WIDTH 70
+#define UI_RESULT_WIDTH 70
+#define UI_TAG_WIDTH 70
 
 
 std::string format_string (std::string str, size_t length) {
@@ -29,26 +29,26 @@ void render_ui (UIState *ui_state) {
         }
     }
 
-    std::string tags[5];
-    for(int i=0; i<5; i++) {
-        tags[i] = format_string(" ", 21);
-    }
+    std::string ui_frame(1, ui_state->frame);
+    std::string queued_inputs = std::to_string((int) ui_state->control_queue->size());
     
     std::string ui = 
-    "|==============================|=======================|\n"\
-    "| " + display              + " | " + tags[0]       + " |\n"\
-    "|==============================| " + tags[1]       + " |\n"\
-    "| " + result[0]            + " | " + tags[2]       + " |\n"\
-    "| " + result[1]            + " | " + tags[3]       + " |\n"\
-    "| " + result[2]            + " | " + tags[4]       + " |\n"\
-    "| " + result[3]            + " |===========|===========|\n"\
-    "| " + result[4]            + " | Key: ---- | BPM: ---- |\n"\
-    "|==============================|===========|===========|\n";
+    "======================================================================\n" \
+    "UI_State: " + ui_frame + "\n" \
+    "Queued Inputs: " + queued_inputs + "\n" \
+    "======================================================================\n" \
+    "Search Bar: " + display + "\n"\
+    "----------------------------------------------------------------------\n" \
+    "Search Results:\n" \
+    "\t" + result[0] + "\n" \
+    "\t" + result[1] + "\n" \
+    "\t" + result[2] + "\n" \
+    "\t" + result[3] + "\n" \
+    "\t" + result[4] + "\n" \
+    "======================================================================\n";
+    
     std::system("cls");
-    fprintf(stdout, "Frame: %c\n", ui_state->frame);
-    fprintf(stdout, "Search Buffer: %s\n", ui_state->search_buffer.c_str());
-    fprintf(stdout, "Cursor: %ds\n", ui_state->search_cursor);
-    fprintf(stdout, "%s", ui.c_str());
+    std::cerr << ui << std::endl;
 }
 
 void print_search_results (std::vector<struct ExplorerFile> results, int n) {
