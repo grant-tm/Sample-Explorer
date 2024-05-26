@@ -15,57 +15,82 @@ LDFLAGS = -lstdc++fs -lsqlite3
 # FILES
 #===============================================================================
 
-# Directories
+# Build Directories
 SRC_DIR = ./src
 INC_DIR = ./inc
 OBJ_DIR = ./obj
 RES_DIR = ./res
 DB_DIR  = ./db
-TST_DIR = ./tests
 BIN_DIR = .
 
-# Executable name
-TARGET = app
-
-# Source filepaths
-SRCS = $(wildcard $(SRC_DIR)/*.cpp)
-
-# Object filepaths
-OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS)) \
-	   $(patsubst $(RES_DIR)/%.rc, 	$(OBJ_DIR)/%.o, $(RES))	
-
-# Resource filepaths
+# Build target, sources, objects, and resources
+TGT = app
+SRC = $(wildcard $(SRC_DIR)/*.cpp)
 RES = $(wildcard $(RES_DIR)/*.rc)
+OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC)) \
+	   	  $(patsubst $(RES_DIR)/%.rc, 	$(OBJ_DIR)/%.o, $(RES))	
 
-# Test filenames
-TSTS = $(notdir $(basename $(wildcard $(TST_DIR)/*.cpp)))
+# Test Directories
+TST_SRC_DIR = ./tests/src
+TST_BIN_DIR = ./tests/bin
+TST_OBJ_DIR = ./tests/obj
+
+# Test sources, objects, and binaries
+TST_SRC = $(wildcard $(TST_SRC_DIR)/*.cpp)
+TST_OBJ = $(patsubst $(TST_SRC_DIR)/%.cpp, $(TST_OBJ_DIR)/%.o, $(TST_SRC))
+TST_BIN = $(patsubst $(TST_SRC_DIR)/%.cpp, $(TST_BIN_DIR)/%, $(TST_SRC))
 
 #===============================================================================
 # BUILD RULES
 #===============================================================================
 
 # Default: compile target
-all: $(TARGET)
+all: $(TGT)
 
-# Compile the target
-$(TARGET): $(OBJS)
-	$(CXX) -o $(BIN_DIR)/$(TARGET) $(OBJS) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS)
+# compile the target
+$(TGT): $(OBJ)
+	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS)
 	
-# Compile object files
+# compile objs
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $(WFLAGS) -c $< -o $@
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS)
 
-# Compile resources
+# compile resources
 $(OBJ_DIR)/resources.o: $(RES_DIR)/resources.rc $(RES_DIR)/icon.ico
 	$(WINDRES) $(RES_DIR)/resources.rc -O coff -o $(OBJ_DIR)/resources.o
 
-# Compile tests
-tests:
-	$(CXX) $(TST_DIR)/$(TSTS).cpp -o $(TST_DIR)/$(TSTS) \
-	$(filter-out ./obj/app.o, $(OBJS)) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS)
+# ensure object directory exists
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
 
 #===============================================================================
-# CLEANUP
+# TEST BUILD RULES
+#===============================================================================
+
+# compile test objs
+$(TST_OBJ_DIR)/%.o: $(TST_SRC_DIR)/%.cpp | $(TST_OBJ_DIR)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS)
+
+# link test binaries
+$(TST_BIN_DIR)/%: $(TST_OBJ_DIR)/%.o $(filter-out $(OBJ_DIR)/$(TGT).o, $(OBJ)) | $(TST_BIN_DIR)
+	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS) $(WFLAGS)
+
+# ensure test object directory exists
+$(TST_OBJ_DIR):
+	mkdir -p $(TST_OBJ_DIR)
+
+# ensure test binary directory exists
+$(TST_BIN_DIR):
+	mkdir -p $(TST_BIN_DIR)
+
+# Test compilation rule
+tests: $(TST_BIN)
+
+run_test: tests
+	@powershell -Command "Get-ChildItem -Path $(TST_BIN_DIR) -Filter *.exe | ForEach-Object { Start-Process -FilePath ($$_.FullName) -Wait }"
+
+#===============================================================================
+# CLEANUP SCRIPTS
 #===============================================================================
 
 # default clean action is clean_build
@@ -84,33 +109,38 @@ clean_all:
 clean_build:
 	@powershell -Command "\
 		Write-Output 'Cleaning Build:'; \
-		Write-Output '--- Deleting .\obj\*.o...'; \
-		Remove-Item -Force $(OBJ_DIR)/*.o; \
-		Write-Output '--- Deleting .\*.exe...'; \
-		Remove-Item -Force $(BIN_DIR)/*.exe;
+		Write-Output '--- Deleting Executables ($(BIN_DIR)/*.exe)'; \
+		Remove-Item -Force $(BIN_DIR)/*.exe; \
+		Write-Output '--- Deleting Object Files ($(OBJ_DIR)/*.o)'; \
+		Remove-Item -Force $(OBJ_DIR)/*.o;
 	
 # clean_tests: Delete .o and .exe files associated with .cpp files in .\tests
 clean_tests:
-	@powershell -Command "\
+	@powershell -Command " \
 		Write-Output 'Cleaning Tests:';	\
-		Write-Output '--- Deleting .\tests\*.o...';	\
-		Remove-Item -Force $(TST_DIR)/*.o; \
-		Write-Output '--- Deleting .\tests\*.exe...'; \
-		Remove-Item -Force $(TST_DIR)/*.exe;"
+		Write-Output '--- Deleting Executables ($(TST_BIN_DIR)/.exe)'; \
+		Remove-Item -Force $(TST_BIN_DIR)/*.exe; \
+		Remove-Item -Force $(TST_BIN_DIR)/*; \
+		Write-Output '--- Deleting Object Files ($(TST_OBJ_DIR)/.o)'; \
+		Remove-Item -Force $(TST_OBJ_DIR)/*.o; \
+		
 
 # clean_databsaes: Delele all .db databases
 clean_db:
 	@powershell -Command "\
 	Write-Output 'Cleaning Databases:'; \
 	if ((Read-Host '--- Type \"Confirm\" to delete databases') -eq 'Confirm') {\
-		Write-Output '--- Deleting $(BIN_DIR)/*.db'; \
+		Write-Output '--- Deleting Databases ($(BIN_DIR)/*.db)'; \
 		Remove-Item -Force $(BIN_DIR)/*.db; \
 	} else { \
-		Write-Host 'Database deletion cancelled.'; \
+		Write-Host 'Aborted Database deletion.'; \
 	}"
 
 #===============================================================================
 # FLAGS
 #===============================================================================
 
-.PHONY: all clean reset_databases clean_all clean_build clean_tests clean_db tests
+.PHONY: 
+	all 
+	clean clean_all clean_build clean_tests clean_db 
+	tests run_test
