@@ -32,7 +32,7 @@ void render_ui (UIState *ui_state) {
     std::string ui_frame(1, ui_state->frame);
     std::string queued_inputs = std::to_string((int) ui_state->control_queue->size());
     
-    std::string ui = 
+    std::string ui =     
     "======================================================================\n" \
     "UI_State: " + ui_frame + "\n" \
     "Queued Inputs: " + queued_inputs + "\n" \
@@ -47,7 +47,6 @@ void render_ui (UIState *ui_state) {
     "\t" + result[4] + "\n" \
     "======================================================================\n";
     
-    std::system("cls");
     std::cerr << ui << std::endl;
 }
 

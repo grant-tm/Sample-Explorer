@@ -158,9 +158,8 @@ void db_insert_file(sqlite3 *db, const struct ExplorerFile *file,
 
 // db_insert_files inserts entries in the audio_files database table
 // data to insert comes from a vector of ExplorerFile structs
-void db_insert_files (sqlite3 *db, 
-                        ThreadSafeQueue<struct ExplorerFile *> *files) {
-    
+void db_insert_files (sqlite3 *db, ThreadSafeQueue<struct ExplorerFile *> *files) {
+
     // create statement to insert all members of explorer file struct
     const char* sql =   "INSERT OR IGNORE INTO audio_files ("\
                             "file_path,"\
@@ -177,6 +176,7 @@ void db_insert_files (sqlite3 *db,
                             "auto_key)"\
                             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     sqlite3_stmt* stmt = nullptr;
+    
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         panicf("db_insert_files: Error preparing statemen.\n");
     } 
