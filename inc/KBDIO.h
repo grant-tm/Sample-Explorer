@@ -8,8 +8,10 @@
 #include <condition_variable>
 
 #include "SystemUtilities.h"
+#include "ThreadSafeQueue.h"
 
 #define NUM_KEYS 256
+#define KBD_RETRIGGER_DELAY 5000
 
 // commands
 #define KBD_CTRL_S 19
@@ -40,19 +42,19 @@ public:
 
     // input
     void kbd_poll_inputs (void);
-    char kbd_listener    (void);
+    void kbd_queue_inputs (ThreadSafeQueue<char> *inputs);
 
     // conversions
-    inline char kbd_code_to_char (int kbd_code);
-    inline int  kbd_char_to_code (char c);
+    char kbd_code_to_char (int kbd_code);
+    int  kbd_char_to_code (char c);
 
     // thread safe state checks
-    inline bool kbd_is_pressed  (char c);
-    inline bool kbd_is_held     (char c);
-    inline bool kbd_is_fresh    (char c);
-    inline bool kbd_is_pressed  (int kbd_code);
-    inline bool kbd_is_held     (int kbd_code);
-    inline bool kbd_is_fresh    (int kbd_code);
+    bool kbd_is_pressed  (char c);
+    bool kbd_is_held     (char c);
+    bool kbd_is_fresh    (char c);
+    bool kbd_is_pressed  (int kbd_code);
+    bool kbd_is_held     (int kbd_code);
+    bool kbd_is_fresh    (int kbd_code);
 
 private:
     
