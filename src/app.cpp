@@ -60,7 +60,6 @@ int main (int argc, char* argv[]) {
                         ui_state->control_queue->push(io_handle.code_to_char(i));
                     }
                 }
-                Sleep(10);
             }
         }
         
@@ -76,14 +75,13 @@ int main (int argc, char* argv[]) {
                     }
                     render_ui(ui_state);
                     while (ui_state->control_queue->is_producing() && ui_state->control_queue->empty()) {
-                        Sleep(25);
+                        Sleep(100);
                     }
                 }
+                
             }
         }
     }
-
-    
 
     fflush(stdin);
     fflush(stdout);
