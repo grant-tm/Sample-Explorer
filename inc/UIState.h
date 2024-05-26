@@ -5,14 +5,14 @@
 #include <string>
 #include <vector>
 
-#include "Controls.h"
+#include "MKBDIO.h"
 #include "ThreadSafeQueue.h"
 #include "ExplorerFile.h"
 
 class UIState {
 public:
     char frame = 's'; // s search, r results
-
+    
     ThreadSafeQueue<char> *control_queue;
 
     std::string search_buffer = "";
