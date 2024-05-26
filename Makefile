@@ -77,7 +77,7 @@ clean_all:
 	if ((Read-Host 'Clean Build, Tests, and Databases? [Y/N]') -eq 'Y') { \
 		& '$(MAKE)' clean_build clean_tests clean_db; \
 	} else { \
-		Write-Output 'Clean cancelled. No files were removed.'; \
+		Write-Output '--- Clean cancelled. No files were removed.'; \
 	};"
 
 # clean_build: Delete .o and .exe files associated with .cpp files in .\src
@@ -102,9 +102,9 @@ clean_tests:
 clean_db:
 	@powershell -Command "\
 	Write-Output 'Cleaning Databases:'; \
-	if ((Read-Host 'Type \"Confirm\" to delete databases') -eq 'Confirm') { \
+	if ((Read-Host '--- Type \"Confirm\" to delete databases') -eq 'Confirm') {\
 		Write-Output '--- Deleting $(BIN_DIR)/*.db'; \
-		Remove-Item -Force $(DB_DIR)/*.db; \
+		Remove-Item -Force $(BIN_DIR)/*.db; \
 	} else { \
 		Write-Host 'Database deletion cancelled.'; \
 	}"
