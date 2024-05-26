@@ -69,6 +69,7 @@
         "queue": "cpp",
         "ranges": "cpp",
         "span": "cpp",
-        "cstdarg": "cpp"
+        "cstdarg": "cpp",
+        "array": "cpp"
     }
 }
