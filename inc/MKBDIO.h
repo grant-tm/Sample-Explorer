@@ -8,8 +8,21 @@
 
 #define NUM_KEYS 256
 
+// commands
+#define KBD_CTRL_S 19
+#define KBD_CTRL_R 18
+#define KBD_CTRL_T 20
+#define KBD_CTRL_Q 17
+
+// non-printable characters
+#define KBD_RETURN 10
+#define KBD_BACKSPACE 8
+#define KBD_DELETE 127
+#define KBD_SHIFT 16
+
 class MKBDIO {
 public:
+    
     MKBDIO (void);
     ~MKBDIO (void);
 
@@ -18,13 +31,20 @@ public:
     int  char_to_code (char);
 
     // thread safe state checks
-    bool key_state  (char);
-    bool key_state  (int);
+    bool key_state (char);
+    bool key_state (int);
+
+    bool key_is_fresh (char);
+    bool key_is_fresh (int);
+
+    void key_mark_unfresh (char);
+    void key_mark_unfresh (int);
 
 private:
     
     // key state
     bool key_states[NUM_KEYS];
+    bool key_fresh[NUM_KEYS];
     
     // thread management
     std::mutex mutex;

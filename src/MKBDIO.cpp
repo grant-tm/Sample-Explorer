@@ -8,6 +8,7 @@ MKBDIO::MKBDIO() {
     // init the key states to false
     for(int i=0; i<NUM_KEYS; i++) {
         key_states[i] = false;
+        key_fresh[i] = false;
     }
 
     // start the thread to listen for key events
@@ -30,23 +31,48 @@ int MKBDIO::char_to_code (char c) {
     return static_cast<int>(c);
 }
 
-// get the state of a specific key from a character
-bool MKBDIO::key_state (char c) {
-    int vk_code = char_to_code(c);
-    std::lock_guard<std::mutex> lock(mutex);
+// get the state of a specific key from the vk_code
+bool MKBDIO::key_state (int vk_code) {
     if (vk_code < 0 || vk_code > 255) {
         return false;
     }
+    std::lock_guard<std::mutex> lock(mutex);
     return key_states[vk_code];
 }
 
+// get the state of a specific key from a character
+bool MKBDIO::key_state (char c) {
+    return key_state(char_to_code(c));
+}
+
 // get the state of a specific key from the vk_code
-bool MKBDIO::key_state (int vk_code) {
-    std::lock_guard<std::mutex> lock(mutex);
+bool MKBDIO::key_is_fresh (int vk_code) {
     if (vk_code < 0 || vk_code > 255) {
         return false;
     }
-    return key_states[vk_code];
+
+    std::lock_guard<std::mutex> lock(mutex);
+    return key_fresh[vk_code];
+}
+
+// get the state of a specific key from a character
+bool MKBDIO::key_is_fresh (char c) {
+    return key_is_fresh(char_to_code(c));
+}
+
+// get the state of a specific key from the vk_code
+void MKBDIO::key_mark_unfresh (int vk_code) {
+    if (vk_code < 0 || vk_code > 255) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex);
+    key_fresh[vk_code] = false;
+}
+
+// get the state of a specific key from a character
+void MKBDIO::key_mark_unfresh (char c) {
+    key_mark_unfresh(char_to_code(c));
 }
 
 //=============================================================================
@@ -130,7 +156,9 @@ void MKBDIO::process_key_press (UINT msg, int vk_code) {
     std::lock_guard<std::mutex> lock(mutex);
     if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) {
         key_states[vk_code] = true;
+        key_fresh[vk_code] = true;
     } else if (msg == WM_KEYUP || msg == WM_SYSKEYUP) {
         key_states[vk_code] = false;
+        key_fresh[vk_code] = false;
     }
 }
