@@ -102,8 +102,8 @@ struct ExplorerFile *process_file (sqlite3 *db,
 }
 
 // check if file extension is .mp3 or .wav
-inline bool validate_file_extension (const fs::directory_entry& file) {    
-    auto extension = file.path().extension().string();
+inline bool validate_file_extension (const fs::directory_entry *file) {    
+    auto extension = file->path().extension().string();
     if (extension == ".mp3" || extension == ".wav") {
         return true;
     } else {
@@ -129,113 +129,100 @@ std::vector<fs::path> find_sub_dirs (const fs::path& root_path) {
 
 // Check if file meets the requirements to be analyzed and included in the db
 // Files must exist, be a regular file, and have a .mp3 or .wav extension.
-bool requires_processing (sqlite3* db, const fs::directory_entry file) {
-    if (file.is_regular_file() && 
-        validate_file_extension(file) && 
-        !db_entry_exists(db, "audio_files", file.path().string()))[[unlikely]]{
+bool requires_processing (sqlite3* db, const fs::directory_entry *file) {
+    if (file->is_regular_file() && validate_file_extension(file) && 
+            !db_entry_exists(db, "audio_files", file->path().string()))[[unlikely]]{
         return true;
+    
     } else {
         return false;
     }
 }
 
-void queue_files_for_processing (sqlite3 *db, const fs::path& dir_path, 
-                ThreadSafeQueue<fs::directory_entry> *files_to_process ) {
-
-    // calculate the number of top-level sub-directories in the root directory
-    // TODO: Find a better method to split up work
-    // This is used as a heuristic to divide work evenly betweeen threads,
-    // see description of find_sub_dirs for overview of limitations.
-    std::vector<fs::path> sub_dirs = find_sub_dirs(dir_path);
-    int num_sub_dirs = sub_dirs.size();
-
-    // enable "producing" flag to prevent consumer from exiting early
-    files_to_process->start_producing();
-
-    // add directory entries to processing queue
-    // entries are added if they are valid .mp3 or .wav files
-    #pragma omp parallel for
-    for(int i=0; i<num_sub_dirs; i++) {
-        fs::path sub_dir = sub_dirs[i];
-        if (fs::exists(sub_dir)) {
-            for (const auto& file : fs::recursive_directory_iterator(sub_dir)) {
-                if (requires_processing(db, file)) {
-                    files_to_process->push(file);
-                }
-            }
+void queue_files (sqlite3 *db, const fs::path &dir_path, 
+                ThreadSafeQueue<fs::directory_entry> *proc_queue) {
+    
+    std::vector<std::thread> threads;            
+    
+    for (const auto& entry : fs::directory_iterator(dir_path)) {
+        if(requires_processing(db, &entry)) {
+            proc_queue->push(entry);
+        } 
+        else if (entry.is_directory()) {
+            threads.emplace_back(&queue_files, db, entry, proc_queue);
         }
     }
 
-    // singal done producing
-    files_to_process->stop_producing();
+    // join all threads
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+}
+
+void queue_all_files (sqlite3 *db, const fs::path &dir_path, 
+                ThreadSafeQueue<fs::directory_entry> *proc_queue ) {
+    queue_files(db, dir_path, proc_queue);
+    proc_queue->stop_producing();
+}
+
+void process_and_queue (sqlite3* db, fs::directory_entry file, 
+    ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
+    
+    struct ExplorerFile *procd_file = process_file(db, file);
+    insrt_queue->push(procd_file);
 }
 
 void process_queued_files (sqlite3* db, 
         ThreadSafeQueue<fs::directory_entry> *proc_queue,
         ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
 
-    insrt_queue->start_producing();
-    int num_scanned = 0;
     while (!proc_queue->empty() || proc_queue->is_producing()) {
         
         fs::directory_entry file;
-        proc_queue->wait_pop(file);
+        proc_queue->try_pop(file);
         
         if (!file.path().empty()) {
             struct ExplorerFile *procd_file = process_file(db, file);
             insrt_queue->push(procd_file);
-
-            if(++num_scanned % 64 == 0) {
-                fprintf(stderr, "\r%d", num_scanned);
-            }
         }
     }
+
     insrt_queue->stop_producing();
 }
 
 void insert_processed_files (sqlite3* db, 
     ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
     
-    while (!insrt_queue->empty() || insrt_queue->is_producing()) {
+    while (insrt_queue->is_producing()) {
         if(insrt_queue->size() >= TRANSACTION_SIZE) {
             db_insert_files(db, insrt_queue);
         }
+    }
+    while (!insrt_queue->empty()) {
+        db_insert_files(db, insrt_queue);
     }
 }
 
 void scan_directory (sqlite3 *db, const fs::path& dir_path) {
     
-    ThreadSafeQueue<fs::directory_entry> processing_queue;
-    ThreadSafeQueue<struct ExplorerFile *> insertion_queue;
-
-    std::thread t1(queue_files_for_processing, db, dir_path, &processing_queue);
-    std::thread t2(process_queued_files, db, &processing_queue, &insertion_queue);
-    std::thread t3(insert_processed_files, db, &insertion_queue);
-
-    t1.join();
-    t2.join();
-    t3.join();
-
-    // #pragma omp sections
-    // {
-    //     // locate files eligable for processing & entry
-    //     #pragma omp section
-    //     {
-    //         queue_files_for_processing(db, dir_path, &processing_queue);
-    //     }
-
-    //     // process files for entry
-    //     #pragma omp section
-    //     {
-    //         process_queued_files(db, &processing_queue, &insertion_queue);
-            
-    //     }
-
-    //     // enter processed files
-    //     #pragma omp section
-    //     {
-    //         insert_processed_files(db, &insertion_queue);
-    //     }
-    // }
+    ThreadSafeQueue<fs::directory_entry> proc_queue;
+    proc_queue.start_producing();
     
+    ThreadSafeQueue<struct ExplorerFile *> insrt_queue;
+    insrt_queue.start_producing();
+
+    std::vector<std::thread> threads;
+
+    threads.emplace_back(&queue_all_files, db, dir_path, &proc_queue);
+    threads.emplace_back(&process_queued_files, db, &proc_queue, &insrt_queue);
+    threads.emplace_back(&insert_processed_files, db, &insrt_queue);
+
+    // Join all threads
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
 }
