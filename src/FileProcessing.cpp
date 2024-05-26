@@ -167,14 +167,14 @@ void queue_all_files (sqlite3 *db, const fs::path &dir_path,
     proc_queue->stop_producing();
 }
 
-void process_and_queue (sqlite3* db, fs::directory_entry file, 
+void process_and_queue (sqlite3 *db, fs::directory_entry file, 
     ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
     
     struct ExplorerFile *procd_file = process_file(db, file);
     insrt_queue->push(procd_file);
 }
 
-void process_queued_files (sqlite3* db, 
+void process_queued_files (sqlite3 *db, 
         ThreadSafeQueue<fs::directory_entry> *proc_queue,
         ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
 
