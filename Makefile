@@ -86,8 +86,9 @@ clean_build:
 		Write-Output 'Cleaning Build:'; \
 		Write-Output '--- Deleting .\obj\*.o...'; \
 		Remove-Item -Force $(OBJ_DIR)/*.o; \
-		Write-Output '--- Deleting .\src\*.exe...'; \
-		Remove-Item -Force $(SRC_DIR)/*.exe;"
+		Write-Output '--- Deleting .\*.exe...'; \
+		Remove-Item -Force $(BIN_DIR)/*.exe;
+	
 # clean_tests: Delete .o and .exe files associated with .cpp files in .\tests
 clean_tests:
 	@powershell -Command "\
