@@ -8,6 +8,7 @@
 
 // External Inclusions
 #include <omp.h>
+#include <thread>
 #include "sqlite3.h"
 
 // Project Inclusions

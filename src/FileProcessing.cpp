@@ -208,26 +208,34 @@ void scan_directory (sqlite3 *db, const fs::path& dir_path) {
     ThreadSafeQueue<fs::directory_entry> processing_queue;
     ThreadSafeQueue<struct ExplorerFile *> insertion_queue;
 
-    #pragma omp sections
-    {
-        // locate files eligable for processing & entry
-        #pragma omp section
-        {
-            queue_files_for_processing(db, dir_path, &processing_queue);
-        }
+    std::thread t1(queue_files_for_processing, db, dir_path, &processing_queue);
+    std::thread t2(process_queued_files, db, &processing_queue, &insertion_queue);
+    std::thread t3(insert_processed_files, db, &insertion_queue);
 
-        // process files for entry
-        #pragma omp section
-        {
-            process_queued_files(db, &processing_queue, &insertion_queue);
+    t1.join();
+    t2.join();
+    t3.join();
+
+    // #pragma omp sections
+    // {
+    //     // locate files eligable for processing & entry
+    //     #pragma omp section
+    //     {
+    //         queue_files_for_processing(db, dir_path, &processing_queue);
+    //     }
+
+    //     // process files for entry
+    //     #pragma omp section
+    //     {
+    //         process_queued_files(db, &processing_queue, &insertion_queue);
             
-        }
+    //     }
 
-        // enter processed files
-        #pragma omp section
-        {
-            insert_processed_files(db, &insertion_queue);
-        }
-    }
+    //     // enter processed files
+    //     #pragma omp section
+    //     {
+    //         insert_processed_files(db, &insertion_queue);
+    //     }
+    // }
     
 }
