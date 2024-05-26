@@ -16,6 +16,36 @@ void fetch_results (sqlite3* db, UIState *ui_state) {
     }
 }
 
+void thread1 (UIState *ui_state, MKBDIO *io_handle) {
+    while(1) {
+        for (int i=0; i<256; i++) {
+            if(io_handle->key_is_fresh(i) == true) {
+                io_handle->key_mark_unfresh(i);
+                ui_state->control_queue->push(io_handle->code_to_char(i));
+            }
+        }
+    }
+}
+
+void thread2 (sqlite3 *db, UIState *ui_state) {
+    while(1) {
+        ui_state->control_queue->start_producing();
+        Sleep(200);
+        while(ui_state->control_queue->is_producing()) {
+            ui_state->process_inputs();
+            if(ui_state->search_exec) {
+                fetch_results(db, ui_state);
+            }
+            std::system("cls");
+            render_ui(ui_state);
+            while (ui_state->control_queue->is_producing() && ui_state->control_queue->empty()) {
+                Sleep(100);
+            }
+        }
+        
+    }
+}
+
 int main (int argc, char* argv[]) {
    
     sqlite3* db = nullptr;
@@ -34,54 +64,21 @@ int main (int argc, char* argv[]) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
     fprintf(stderr, "Scan duration: %f\n", duration.count() / 1000);
-
-    if (db_table_valid(db, "audio_files")) {
-        int num_rows = db_get_num_rows(db, "audio_files");
-        fprintf(stderr, "Number of rows: %d\n", num_rows);
-    }
+    Sleep(1000);
 
     ui_hide_cursor();
 
     ThreadSafeQueue<char> queue;
     UIState *ui_state = new UIState;
     ui_state->control_queue = &queue;
-    render_ui(ui_state);
     
     MKBDIO io_handle;
 
-    #pragma omp parallel sections
-    {
-        #pragma omp section
-        {
-            while(1) {
-                for (int i=0; i<256; i++) {
-                    if(io_handle.key_is_fresh(i) == true) {
-                        io_handle.key_mark_unfresh(i);
-                        ui_state->control_queue->push(io_handle.code_to_char(i));
-                    }
-                }
-            }
-        }
-        
-        #pragma omp section
-        {
-            while(1) {
-                ui_state->control_queue->start_producing();
-                Sleep(200);
-                while(ui_state->control_queue->is_producing()) {
-                    ui_state->process_inputs();
-                    if(ui_state->search_exec) {
-                        fetch_results(db, ui_state);
-                    }
-                    render_ui(ui_state);
-                    while (ui_state->control_queue->is_producing() && ui_state->control_queue->empty()) {
-                        Sleep(100);
-                    }
-                }
-                
-            }
-        }
-    }
+    std::thread t1(&thread1, ui_state, &io_handle);
+    std::thread t2(&thread2, db, ui_state);
+
+    t1.join();
+    t2.join();
 
     fflush(stdin);
     fflush(stdout);
