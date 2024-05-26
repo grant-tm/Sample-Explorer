@@ -2,7 +2,7 @@
 #include "..\inc\FileProcessing.h"
 #include "..\inc\SystemUtilities.h"
 #include "..\inc\DatabaseInteractions.h"
-#include "..\inc\Controls.h"
+#include "..\inc\MKBDIO.h"
 #include "..\inc\UI.h"
 #include "..\inc\ThreadSafeQueue.h"
 
@@ -47,42 +47,43 @@ int main (int argc, char* argv[]) {
     ui_state->control_queue = &queue;
     render_ui(ui_state);
     
-    #pragma omp parallel sections 
+    MKBDIO io_handle;
+
+    #pragma omp parallel sections
     {
         #pragma omp section
         {
-            ui_state->control_queue->start_producing();
-            Sleep(1000);
-            while(ui_state->control_queue->is_producing()) {
-                ui_state->process_inputs();
-                if(ui_state->search_exec) {
-                    fetch_results(db, ui_state);
+            while(1) {
+                for (int i=0; i<256; i++) {
+                    if(io_handle.key_is_fresh(i) == true) {
+                        io_handle.key_mark_unfresh(i);
+                        ui_state->control_queue->push(io_handle.code_to_char(i));
+                    }
                 }
-                render_ui(ui_state);
-                while (ui_state->control_queue->is_producing() && 
-                            ui_state->control_queue->empty()) {
-                    Sleep(25);
-                }
+                Sleep(10);
             }
-            fprintf(stderr, "UI RENDERING THREAD EXITING\n");
         }
-
+        
         #pragma omp section
         {
             while(1) {
-                Sleep(25);
-                char c = keyboard_listener();
-                ui_state->control_queue->push(c);
-                if (ui_state->frame == 'q') {
-                    ui_state->control_queue->stop_producing();
-                    break;
+                ui_state->control_queue->start_producing();
+                Sleep(200);
+                while(ui_state->control_queue->is_producing()) {
+                    ui_state->process_inputs();
+                    if(ui_state->search_exec) {
+                        fetch_results(db, ui_state);
+                    }
+                    render_ui(ui_state);
+                    while (ui_state->control_queue->is_producing() && ui_state->control_queue->empty()) {
+                        Sleep(25);
+                    }
                 }
             }
-            fprintf(stderr, "KEYBOARD CONTROL THREAD EXITING\n");
         }
-
-        
     }
+
+    
 
     fflush(stdin);
     fflush(stdout);
