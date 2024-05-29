@@ -40,6 +40,12 @@ TST_SRC = $(wildcard $(TST_SRC_DIR)/*.cpp)
 TST_OBJ = $(patsubst $(TST_SRC_DIR)/%.cpp, $(TST_OBJ_DIR)/%.o, $(TST_SRC))
 TST_BIN = $(patsubst $(TST_SRC_DIR)/%.cpp, $(TST_BIN_DIR)/%, $(TST_SRC))
 
+# Includes
+SQLITE3   = ../repos/sqlite
+AUDIOFILE = ../repos/AudioFile/
+KISSFFT   = ../repos/kissfft/
+INCLUDES  = -I $(SQLITE3) -I $(AUDIOFILE) -I $(KISSFFT) ../repos/kissfft/kiss_fft.c
+
 #===============================================================================
 # BUILD RULES
 #===============================================================================
@@ -49,11 +55,11 @@ all: $(TGT)
 
 # compile the target
 $(TGT): $(OBJ)
-	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS)
+	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS) $(INCLUDES)
 	
 # compile objs
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS) $(INCLUDES)
 
 # compile resources
 $(OBJ_DIR)/resources.o: $(RES_DIR)/resources.rc $(RES_DIR)/icon.ico
