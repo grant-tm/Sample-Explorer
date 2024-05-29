@@ -205,6 +205,20 @@ void insert_processed_files (sqlite3* db,
     }
 }
 
+// scan_directory scans, processes, and inserts audio files into the database
+// Three threads are created and the following producer-consumer pipeline runs:
+// 1. dir_path -> proc_queue
+//    queue_all_files recursively drills down dir_pathchecking for
+//    .mp3 and .wav files that are not in the database (see requires_processing)
+//    Files that require processing are queued in proc_queue.
+// 2. proc_queue -> insrt_queue
+//    process_queued_files pops files from the queue as fs::directory_entry
+//    objects, transforms them into struct ExplorerFile * objects, and pushes 
+//    them in the insrt_queue.
+// 3. insrt_queue -> database
+//    insert_processed_files pops ExplorerFile objects off the insert queue and
+//    inserts their data as entries in the database. Insertions are broken up
+//    into transactions for faster insertion (see DBINT::db_insert_files)
 void scan_directory (sqlite3 *db, const fs::path& dir_path) {
     
     ThreadSafeQueue<fs::directory_entry> proc_queue;
