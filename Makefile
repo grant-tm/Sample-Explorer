@@ -9,7 +9,7 @@ WINDRES = windres
 # Flags
 CXXFLAGS = -std=c++17 -fopenmp -I/Users/Grant/Documents/SQLite
 WFLAGS = -Wall -Wpedantic
-LDFLAGS = -lstdc++fs -lsqlite3
+LDFLAGS = -lstdc++fs -lsqlite3 -fopenmp
 
 #===============================================================================
 # FILES
@@ -28,7 +28,8 @@ TGT = app
 SRC = $(wildcard $(SRC_DIR)/*.cpp)
 RES = $(wildcard $(RES_DIR)/*.rc)
 OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC)) \
-	   	  $(patsubst $(RES_DIR)/%.rc, 	$(OBJ_DIR)/%.o, $(RES))	
+	   	  $(patsubst $(RES_DIR)/%.rc, 	$(OBJ_DIR)/%.o, $(RES))
+OBJ := $(filter-out $(OBJ_DIR)/KeyDet.o, $(OBJ))
 
 # Test Directories
 TST_SRC_DIR = ./tests/src
@@ -44,7 +45,8 @@ TST_BIN = $(patsubst $(TST_SRC_DIR)/%.cpp, $(TST_BIN_DIR)/%, $(TST_SRC))
 SQLITE3   = ../repos/sqlite
 AUDIOFILE = ../repos/AudioFile/
 KISSFFT   = ../repos/kissfft/
-INCLUDES  = -I $(SQLITE3) -I $(AUDIOFILE) -I $(KISSFFT) ../repos/kissfft/kiss_fft.c
+KISSFFTC  = ../repos/kissfft/kiss_fft.c
+INC = -I $(SQLITE3) -I $(AUDIOFILE) -I $(KISSFFT) -I ./inc
 
 #===============================================================================
 # BUILD RULES
@@ -54,15 +56,19 @@ INCLUDES  = -I $(SQLITE3) -I $(AUDIOFILE) -I $(KISSFFT) ../repos/kissfft/kiss_ff
 all: $(TGT)
 
 # compile the target
-$(TGT): $(OBJ)
-	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(CXXFLAGS) $(LDFLAGS) $(WFLAGS) $(INCLUDES)
-	
+$(TGT): $(OBJ_DIR)/KeyDet.o $(OBJ) 
+	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(OBJ_DIR)/KeyDet.o ../repos/kissfft/kiss_fft.o $(CXXFLAGS) $(LDFLAGS) $(WFLAGS) $(INC)
+
+# comiple keydet
+$(OBJ_DIR)/KeyDet.o: $(SRC_DIR)/KeyDet.cpp 
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS) $(INC)
+
 # compile objs
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS) $(INCLUDES)
+	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS) $(INC)
 
 # compile resources
-$(OBJ_DIR)/resources.o: $(RES_DIR)/resources.rc $(RES_DIR)/icon.ico
+$(OBJ_DIR)/resources.o: $(RES_DIR)/resources.rc 
 	$(WINDRES) $(RES_DIR)/resources.rc -O coff -o $(OBJ_DIR)/resources.o
 
 # ensure object directory exists
