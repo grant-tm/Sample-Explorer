@@ -4,7 +4,6 @@
 #define UI_RESULT_WIDTH 70
 #define UI_TAG_WIDTH 70
 
-
 std::string format_string (std::string str, size_t length) {
     if (str.length() <= length) {
         return str + std::string(length - str.length(), ' ');
