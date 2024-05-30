@@ -8,24 +8,69 @@
 #include "AudioFile.h"
 #include "kiss_fft.h"
 
+#include <thread>
+#include <mutex>
+#include <omp.h>
+
 #define FFT_WINDOW_SIZE 8192 * 2
+#define MAX_ANALYSIS_TIME FFT_WINDOW_SIZE * 16
 
-const char* int_to_key (int key_num);
+class MidiMap {
+private:
+    std::mutex mutex;
+    float weights[128] = {0.0};
 
-std::vector<float> make_mono (std::vector<std::vector<float>> &);
+public:
+    // Define the weights for the 12 semitones in both major and minor keys
+    const std::vector<int> key_templates[24] = {
+        // major keys
+        {0, 2, 4, 5, 7, 9, 11},  // C  maj : A  min
+        {1, 3, 5, 6, 8, 10, 0},  // C# maj : A# min
+        {2, 4, 6, 7, 9, 11, 1},  // D  maj : B  min
+        {3, 5, 7, 8, 10, 0, 2},  // D# maj : C  min
+        {4, 6, 8, 9, 11, 1, 3},  // E  maj : C# min
+        {5, 7, 9, 10, 0, 2, 4},  // F  maj : D  min
+        {6, 8, 10, 11, 1, 3, 5}, // F# maj : D# min
+        {7, 9, 11, 0, 2, 4, 6},  // G  maj : E  min
+        {8, 10, 0, 1, 3, 5, 7},  // G# maj : F  min
+        {9, 11, 1, 2, 4, 6, 8},  // A  maj : F# min
+        {10, 0, 2, 3, 5, 7, 9},  // A# maj : G  min
+        {11, 1, 3, 4, 6, 8, 10}, // B  maj : G# min
+    };
 
-void pack_input (std::vector<float> &, int , kiss_fft_cpx *);
+    // Translate a key template index to the key signiture as a string
+    const char* int_to_key (int);
 
-void perform_fft (kiss_fft_cpx *, kiss_fft_cpx *);
+    // set a note weight directly
+    void set_weight (int note, float value);
 
-float inline magnitude (kiss_fft_cpx *);
+    // increment note weight by an amount
+    void inc_weight (int, float);
 
-int inline midi_note (int, int, int);
 
-void accumulate_midi_notes (float *, kiss_fft_cpx *, int, int);
+    // decrement a note weight by an amount
+    void dec_weight (int, float);
 
-int assign_key (float *);
+    // read a note weight value
+    float read_weight(int);
 
-int detect_key (std::string);
+};
+
+bool path_is_ascii(std::string path);
+
+std::vector<float> make_mono(std::vector<std::vector<float>> &samples);
+
+// calculate magnitude of cosine factor
+float magnitude (kiss_fft_cpx *inum);
+
+// calculate the nearest MIDI note number
+int midi_note (int index, int sample_rate);
+
+// Function to determine the musical key based on weights
+int assign_key (MidiMap *midi_map);
+
+void process_segment (const std::vector<float> *samples, int start, int sample_rate, MidiMap *midi_map);
+
+int kdet_detect_key (std::string path);
 
 #endif // KEY_DET_H

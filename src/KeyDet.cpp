@@ -1,27 +1,13 @@
-// g++ keydet.cpp -o keydet -std=c++17 ..\repos\kissfft\kiss_fft.c -I ..\repos\AudioFile\AudioFile.h
-
 #include "../inc/KeyDet.h"
 
 namespace fs = std::filesystem;
 
-// Define the weights for the 12 semitones in both major and minor keys
-const std::vector<int> key_templates[24] = {
-    // major keys
-    {0, 2, 4, 5, 7, 9, 11},  // C major
-    {1, 3, 5, 6, 8, 10, 0},  // C# major
-    {2, 4, 6, 7, 9, 11, 1},  // D major
-    {3, 5, 7, 8, 10, 0, 2},  // D# major
-    {4, 6, 8, 9, 11, 1, 3},  // E major
-    {5, 7, 9, 10, 0, 2, 4},  // F major
-    {6, 8, 10, 11, 1, 3, 5}, // F# major
-    {7, 9, 11, 0, 2, 4, 6},  // G major
-    {8, 10, 0, 1, 3, 5, 7},  // G# major
-    {9, 11, 1, 2, 4, 6, 8},  // A major
-    {10, 0, 2, 3, 5, 7, 9},  // A# major
-    {11, 1, 3, 4, 6, 8, 10}, // B major
-};
+//==============================================================================
+// MidiMap Definitions
+//==============================================================================
 
-const char* int_to_key(int key_num) {
+// Translate a key template index to the key signiture as a string
+const char* MidiMap::int_to_key(int key_num) {
     switch (key_num) {
         case 0:  return "C Major";
         case 1:  return "C# Major";
@@ -37,6 +23,57 @@ const char* int_to_key(int key_num) {
         case 11: return "B Major";
         default: return "Unknown Key";
     }
+}
+
+// set a note weight directly
+void MidiMap::set_weight (int note, float value) {
+    std::lock_guard<std::mutex> guard(mutex);
+    if (note >= 0 && note < 128) {
+        weights[note] = value;
+        return;
+    }
+}
+
+// increment note weight by an amount
+void MidiMap::inc_weight (int note, float value) {
+    std::lock_guard<std::mutex> guard(mutex);
+    if (note >= 0 && note < 128) {
+        weights[note] += value;
+        return;
+    }
+}
+
+
+// decrement a note weight by an amount
+void MidiMap::dec_weight (int note, float value) {
+    std::lock_guard<std::mutex> guard(mutex);
+    if (note >= 0 && note < 128) {
+        weights[note] += value;
+        return;
+    }
+}
+
+// read a note weight value
+float MidiMap::read_weight(int index) {
+    std::lock_guard<std::mutex> guard(mutex);
+    if (index >= 0 && index < 128) {
+        return weights[index];
+    } else {
+        return 0;
+    }
+}
+
+//==============================================================================
+// Other Functions
+//==============================================================================
+
+bool path_is_ascii(std::string path) {
+    for (char c : path) {
+        if (static_cast<unsigned char>(c) > 127) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::vector<float> make_mono(std::vector<std::vector<float>> &samples) {
@@ -62,70 +99,38 @@ std::vector<float> make_mono(std::vector<std::vector<float>> &samples) {
     return mono_samples;
 }
 
-// copy sample input
-void pack_input (std::vector<float> &samples, int offset, kiss_fft_cpx *input) {
-    for (int i=0; i<FFT_WINDOW_SIZE; i++) {
-        //std::cout << "\rIter: " << i;
-        input[i].r = samples[i + offset];
-        input[i].i = samples[i + offset];
-    }
-}
-
-// run the kissfft
-void perform_fft (kiss_fft_cpx *in, kiss_fft_cpx *out) {
-    kiss_fft_cfg cfg = kiss_fft_alloc(FFT_WINDOW_SIZE, 0, NULL, NULL);
-    kiss_fft(cfg, in, out);
-    kiss_fft_free(cfg);
-}
-
 // calculate magnitude of cosine factor
-float inline magnitude (kiss_fft_cpx *inum) {
+float magnitude (kiss_fft_cpx *inum) {
     float real = pow(inum->r, 2.0);
     float imag = pow(inum->i, 2.0);
     float square = pow(real + imag, 0.5);
     return (square < 1.0) ? 0.0 : square;
 }
 
-// convert FFT index to the nearest midi number
-int inline midi_note (int index, int sample_rate, int window_size) {
-    // calculate the nearest MIDI note number
-    float freq = index * sample_rate / window_size;
-    int midi_note = std::round(69 + 12 * std::log2(freq / 440.0));
-    return std::max(0, midi_note);
-}
-
-// accumualte fft results
-void accumulate_midi_notes (float *midi_map, kiss_fft_cpx *output, int sample_rate, int window_size){
+// calculate the nearest MIDI note number
+int midi_note (int index, int sample_rate) {
     
-    if (!midi_map) {
-        return;
-    }
-
-    // for each output index:
-    // 1. calculate nearest midi note
-    // 2. accumualte magnitude of fft result in midi map
-    for (int i=0; i<window_size/2; i++) {
-        int note_id = midi_note(i, sample_rate, window_size);
-        if (note_id > 127) { note_id = 127; }
-        if (note_id < 0 ) { note_id = 0; }
-        
-        float mag = magnitude(&output[i]);
-        midi_map[note_id] += mag;
-    }
+    float freq = index * sample_rate / FFT_WINDOW_SIZE;
+    
+    int midi_note = std::round(69 + 12 * std::log2(freq / 440.0));
+    if (midi_note > 127) [[unlikely]] { return 127; }
+    else if (midi_note <   0) [[unlikely]] { return 0; }
+    else {return midi_note; }
 }
 
 // Function to determine the musical key based on weights
-int assign_key (float *weights) {
+int assign_key (MidiMap *midi_map) {
 
     std::vector<float> key_weights(12, 0.0f);
 
     // Sum the weights for each key
+    #pragma omp parallel for
     for (int key = 0; key < 12; key++) {
-        for (int note : key_templates[key]) {
+        for (int note : midi_map->key_templates[key]) {
             for (int octave = 0; octave < 11; ++octave) {
                 int midi_note = note + 12 * octave;
                 if (midi_note < 128) {
-                    key_weights[key] += weights[midi_note];
+                    key_weights[key] += midi_map->read_weight(midi_note);
                 }
             }
         }
@@ -136,36 +141,71 @@ int assign_key (float *weights) {
     return best_key;
 }
 
-int detect_key (std::string path) {
-    
-    // open an audio file
-    //std::string path = "D:/Samples/Instruments/Keys/Loops/JVIEWS_cassette_keys_86_Amin.wav";
-    AudioFile<float> file;
-    if (!file.load(path)) {
-        std::cerr << "Failed to open audio file: " << path << std::endl;
-        return EXIT_FAILURE;
+
+void process_segment (const std::vector<float> *samples, int start, int sample_rate, MidiMap *midi_map) {
+
+    // accumulate the results in the midi map
+    if (!midi_map) {
+        return;
     }
 
-    std::vector<float> samples = make_mono(file.samples);
-
-    // Create and initialize input output arrays
+    // pack samples in fft input arrays
     kiss_fft_cpx input[FFT_WINDOW_SIZE];
     kiss_fft_cpx output[FFT_WINDOW_SIZE];
     for (int i=0; i<FFT_WINDOW_SIZE; i++) {
-        input[i].r = 0;
-        input[i].i = 0;
-        output[i].r = 0;
-        output[i].i = 0;
+        input[i].r = (*samples)[start+i];
+        input[i].i = (*samples)[start+i];
     }
 
-    // perform accumualtion
-    float midi[128] = {0.0};
-    for (int i=0; i<=(file.getNumSamplesPerChannel()-FFT_WINDOW_SIZE); i += FFT_WINDOW_SIZE) {
-        pack_input(samples, i, input);
-        perform_fft(input, output);
-        accumulate_midi_notes(midi, output, file.getSampleRate(), FFT_WINDOW_SIZE);
+    // perform the fft
+    kiss_fft_cfg cfg = kiss_fft_alloc(FFT_WINDOW_SIZE, 0, NULL, NULL);
+    kiss_fft(cfg, input, output);;
+    kiss_fft_free(cfg);
+
+    // Accumulate fft results in midi map
+    // for each output index:
+    // 1. calculate nearest midi note
+    // 2. accumualte magnitude of fft result in midi map
+    int limit = FFT_WINDOW_SIZE / 2;
+    for (int i=0; i<limit; i++) {
+        int note_id = midi_note(i, sample_rate);
+        float mag = magnitude(&output[i]);
+        midi_map->inc_weight(note_id, mag);
     }
 
-    // assign key
-    return assign_key(midi);
+    return;
+}
+
+int kdet_detect_key (std::string path) {
+    
+    fprintf(stderr, "%s\n", path.c_str());
+
+    // get audio file samples
+    AudioFile<float> file;
+    if (!path_is_ascii(path) || !file.load(path)) {
+        return -1;
+    } 
+    int sample_rate = file.getSampleRate();
+    const std::vector<float> samples = make_mono(file.samples);
+
+    MidiMap midi_map;
+
+    // break file samples into segments and process each
+    int num_sub = file.getNumSamplesPerChannel() - FFT_WINDOW_SIZE;
+    int maxx = (num_sub > MAX_ANALYSIS_TIME) ? MAX_ANALYSIS_TIME : num_sub;
+    
+    std::vector<std::thread> threads;
+    for (int i=0; i<=maxx; i += FFT_WINDOW_SIZE) {
+        threads.emplace_back(&process_segment, &samples, i, sample_rate, &midi_map);
+    }
+
+    // Join all threads
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+
+    // assign key based on fft results
+    return assign_key(&midi_map);
 }
