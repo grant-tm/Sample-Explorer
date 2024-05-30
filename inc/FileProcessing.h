@@ -15,6 +15,7 @@
 #include "SystemUtilities.h"
 #include "ThreadSafeQueue.h"
 #include "ExplorerFile.h"
+#include "KeyDet.h"
 
 // Definitions
 namespace fs = std::filesystem;
