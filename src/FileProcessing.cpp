@@ -96,7 +96,8 @@ struct ExplorerFile *process_file (sqlite3 *db,
     
     // TODO: predict bpm and key
     db_entry->auto_bpm = 0;
-    db_entry->auto_key = 0;
+    std::string path = file.path().string();
+    db_entry->auto_key = kdet_detect_key(path);
 
     return db_entry;
 }
@@ -104,7 +105,7 @@ struct ExplorerFile *process_file (sqlite3 *db,
 // check if file extension is .mp3 or .wav
 inline bool validate_file_extension (const fs::directory_entry *file) {    
     auto extension = file->path().extension().string();
-    if (extension == ".mp3" || extension == ".wav") {
+    if (/* extension == ".mp3" || */extension == ".wav") {
         return true;
     } else {
         return false;
