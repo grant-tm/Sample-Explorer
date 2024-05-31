@@ -12,7 +12,7 @@
 // Project Inclusions
 #include "SystemUtilities.h"
 #include "ThreadSafeQueue.h"
-#include "ExplorerFile.h"
+#include "FileRecord.h"
 
 // definitions
 namespace fs = std::filesystem;
@@ -36,13 +36,13 @@ void db_initialize(sqlite3* db);
 // This function works in conjunction with db_insert_files to submit files in
 // transactions. This allows the reuse of a sqlite3_stmt, which is much
 // faster than inserting entries one at a time
-void db_insert_file(sqlite3* db, const struct ExplorerFile* file, sqlite3_stmt* stmt);
+void db_insert_file(sqlite3* db, const struct FileRecord* file, sqlite3_stmt* stmt);
 
 // Inserts entries in the audio_files database table
-// Data to insert comes from a vector of ExplorerFile structs
-void db_insert_files(sqlite3* db, ThreadSafeQueue<struct ExplorerFile*>* files);
+// Data to insert comes from a vector of FileRecord structs
+void db_insert_files(sqlite3* db, ThreadSafeQueue<struct FileRecord*>* files);
 
 // Function to search files by name
-std::vector<ExplorerFile> db_search_files_by_name(sqlite3* db, const std::string& search_query);
+std::vector<FileRecord> db_search_files_by_name(sqlite3* db, const std::string& search_query);
 
 #endif // DATABASE_H

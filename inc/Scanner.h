@@ -1,5 +1,5 @@
-#ifndef FILE_SCANNER_H
-#define FILE_SCANNER_H
+#ifndef SCANNER_H
+#define SCANNER_H
 
 // Standard Library Inclusions
 #include <string>
@@ -14,8 +14,8 @@
 #include "Database.h"
 #include "SystemUtilities.h"
 #include "ThreadSafeQueue.h"
-#include "ExplorerFile.h"
-#include "KeySignitureDetector.h"
+#include "FileRecord.h"
+#include "DetectKey.h"
 
 // Definitions
 namespace fs = std::filesystem;
@@ -34,7 +34,7 @@ std::vector<std::string> generate_auto_tags (const std::string &);
 std::string concatenate_tags (const std::vector<std::string> &);
 
 // File processing function
-struct ExplorerFile *process_file (sqlite3 *, const fs::directory_entry &);
+struct FileRecord *process_file (sqlite3 *, const fs::directory_entry &);
 
 // File extension validation
 inline bool validate_file_extension (const fs::directory_entry *);
@@ -55,13 +55,13 @@ void queue_all_files (sqlite3 *, const fs::path &,
 // Processing queued files function
 void process_queued_files (sqlite3 *, 
         ThreadSafeQueue<fs::directory_entry> *,
-        ThreadSafeQueue<struct ExplorerFile *> *);
+        ThreadSafeQueue<struct FileRecord *> *);
 
 // Insert processed files function
 void insert_processed_files (sqlite3*, 
-    ThreadSafeQueue<struct ExplorerFile *> *);
+    ThreadSafeQueue<struct FileRecord *> *);
 
 // Directory scanning function
 void scan_directory (sqlite3 *, const fs::path &);
 
-#endif // FILE_SCANNER_H
+#endif // SCANNER_H

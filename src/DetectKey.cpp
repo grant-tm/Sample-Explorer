@@ -1,4 +1,4 @@
-#include "../inc/KeySignitureDetector.h"
+#include "../inc/DetectKey.h"
 
 namespace fs = std::filesystem;
 

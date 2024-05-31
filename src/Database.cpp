@@ -131,10 +131,10 @@ void db_initialize (sqlite3 *db) {
 // this function works in conjunction with db_insert_files to submit files in
 // transactions. This allows the reuse of a sqlite3_stmt, which is much
 // faster than inserting entries one at a time
-void db_insert_file(sqlite3 *db, const struct ExplorerFile *file, 
+void db_insert_file(sqlite3 *db, const struct FileRecord *file, 
                     sqlite3_stmt *stmt) {
     
-    // bind the ExplorerFile data to the INSERT statement arguments
+    // bind the FileRecord data to the INSERT statement arguments
     sqlite3_bind_text(stmt, 1, file->file_path.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, file->file_name.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 3, file->file_size);
@@ -157,8 +157,8 @@ void db_insert_file(sqlite3 *db, const struct ExplorerFile *file,
 }
 
 // db_insert_files inserts entries in the audio_files database table
-// data to insert comes from a vector of ExplorerFile structs
-void db_insert_files (sqlite3 *db, ThreadSafeQueue<struct ExplorerFile *> *files) {
+// data to insert comes from a vector of FileRecord structs
+void db_insert_files (sqlite3 *db, ThreadSafeQueue<struct FileRecord *> *files) {
 
     // create statement to insert all members of explorer file struct
     const char* sql =   "INSERT OR IGNORE INTO audio_files ("\
@@ -184,7 +184,7 @@ void db_insert_files (sqlite3 *db, ThreadSafeQueue<struct ExplorerFile *> *files
     // insert files in a single transaction
     sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
     while (!files->empty()) {
-        struct ExplorerFile* file;
+        struct FileRecord* file;
         files->wait_pop(file);
         db_insert_file(db, file, stmt);
         delete file;
@@ -194,7 +194,7 @@ void db_insert_files (sqlite3 *db, ThreadSafeQueue<struct ExplorerFile *> *files
 }
 
 // Function to search files by name
-std::vector<ExplorerFile> db_search_files_by_name (sqlite3* db, 
+std::vector<FileRecord> db_search_files_by_name (sqlite3* db, 
                                             const std::string& search_query) {
     
     sqlite3_stmt* stmt;
@@ -222,9 +222,9 @@ std::vector<ExplorerFile> db_search_files_by_name (sqlite3* db,
     sqlite3_bind_text(stmt, 1, query_param.c_str(), -1, SQLITE_STATIC);
     
     // Execute the statement and process the results
-    std::vector<ExplorerFile> results;
+    std::vector<FileRecord> results;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        struct ExplorerFile file;
+        struct FileRecord file;
         
         file.file_path = reinterpret_cast<const char*>(
             sqlite3_column_text(stmt, 0));

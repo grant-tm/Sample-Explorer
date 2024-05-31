@@ -1,4 +1,4 @@
-#include "..\inc\FileScanner.h"
+#include "..\inc\Scanner.h"
 
 // These delimiters are used to automatically generate tags from filenames
 constexpr inline bool char_is_delimiter (char ch) {
@@ -66,12 +66,12 @@ std::string concatenate_tags(const std::vector<std::string>& tags) {
     return result;
 }
 
-// given a directory entry, find and record attributes in ExplorerFile struct
-struct ExplorerFile *process_file (sqlite3 *db, 
+// given a directory entry, find and record attributes in FileRecord struct
+struct FileRecord *process_file (sqlite3 *db, 
                                     const fs::directory_entry& file) {
     
     // allocate memory for entry parameters
-    struct ExplorerFile *db_entry = new struct ExplorerFile;
+    struct FileRecord *db_entry = new struct FileRecord;
 
     // identification
     db_entry->file_path = file.path().string();
@@ -169,15 +169,15 @@ void queue_all_files (sqlite3 *db, const fs::path &dir_path,
 }
 
 void process_and_queue (sqlite3 *db, fs::directory_entry file, 
-    ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
+    ThreadSafeQueue<struct FileRecord *> *insrt_queue) {
     
-    struct ExplorerFile *procd_file = process_file(db, file);
+    struct FileRecord *procd_file = process_file(db, file);
     insrt_queue->push(procd_file);
 }
 
 void process_queued_files (sqlite3 *db, 
         ThreadSafeQueue<fs::directory_entry> *proc_queue,
-        ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
+        ThreadSafeQueue<struct FileRecord *> *insrt_queue) {
 
     while (!proc_queue->empty() || proc_queue->is_producing()) {
         
@@ -185,7 +185,7 @@ void process_queued_files (sqlite3 *db,
         proc_queue->try_pop(file);
         
         if (!file.path().empty()) {
-            struct ExplorerFile *procd_file = process_file(db, file);
+            struct FileRecord *procd_file = process_file(db, file);
             insrt_queue->push(procd_file);
         }
     }
@@ -194,7 +194,7 @@ void process_queued_files (sqlite3 *db,
 }
 
 void insert_processed_files (sqlite3* db, 
-    ThreadSafeQueue<struct ExplorerFile *> *insrt_queue) {
+    ThreadSafeQueue<struct FileRecord *> *insrt_queue) {
     
     while (insrt_queue->is_producing()) {
         if(insrt_queue->size() >= TRANSACTION_SIZE) {
@@ -214,10 +214,10 @@ void insert_processed_files (sqlite3* db,
 //    Files that require processing are queued in proc_queue.
 // 2. proc_queue -> insrt_queue
 //    process_queued_files pops files from the queue as fs::directory_entry
-//    objects, transforms them into struct ExplorerFile * objects, and pushes 
+//    objects, transforms them into struct FileRecord * objects, and pushes 
 //    them in the insrt_queue.
 // 3. insrt_queue -> database
-//    insert_processed_files pops ExplorerFile objects off the insert queue and
+//    insert_processed_files pops FileRecord objects off the insert queue and
 //    inserts their data as entries in the database. Insertions are broken up
 //    into transactions for faster insertion (see DBINT::db_insert_files)
 void scan_directory (sqlite3 *db, const fs::path& dir_path) {
@@ -225,7 +225,7 @@ void scan_directory (sqlite3 *db, const fs::path& dir_path) {
     ThreadSafeQueue<fs::directory_entry> proc_queue;
     proc_queue.start_producing();
     
-    ThreadSafeQueue<struct ExplorerFile *> insrt_queue;
+    ThreadSafeQueue<struct FileRecord *> insrt_queue;
     insrt_queue.start_producing();
 
     std::vector<std::thread> threads;

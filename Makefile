@@ -29,7 +29,7 @@ SRC = $(wildcard $(SRC_DIR)/*.cpp)
 RES = $(wildcard $(RES_DIR)/*.rc)
 OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC)) \
 	   	  $(patsubst $(RES_DIR)/%.rc, 	$(OBJ_DIR)/%.o, $(RES))
-OBJ := $(filter-out $(OBJ_DIR)/KeySignitureDetector.o, $(OBJ))
+OBJ := $(filter-out $(OBJ_DIR)/DetectKey.o, $(OBJ))
 
 # Test Directories
 TST_SRC_DIR = ./tests/src
@@ -60,7 +60,7 @@ $(TGT): $(OBJ_DIR)/KeyDet.o $(OBJ)
 	$(CXX) -o $(BIN_DIR)/$(TGT) $(OBJ) $(OBJ_DIR)/KeyDet.o ../repos/kissfft/kiss_fft.o $(CXXFLAGS) $(LDFLAGS) $(WFLAGS) $(INC)
 
 # comiple keydet
-$(OBJ_DIR)/KeyDet.o: $(SRC_DIR)/KeySignitureDetector.cpp 
+$(OBJ_DIR)/KeyDet.o: $(SRC_DIR)/DetectKey.cpp 
 	$(CXX) -c $< -o $@ $(CXXFLAGS) $(WFLAGS) $(INC)
 
 # compile objs

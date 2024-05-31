@@ -7,7 +7,7 @@
 
 #include "MKBDIO.h"
 #include "ThreadSafeQueue.h"
-#include "ExplorerFile.h"
+#include "FileRecord.h"
 
 class UIState {
 public:
@@ -20,7 +20,7 @@ public:
     int search_cursor = 0;
     bool search_exec = false;
 
-    std::vector<struct ExplorerFile> files;
+    std::vector<struct FileRecord> files;
     int file_scroll = 0;
 
     void process_inputs (void);

@@ -1,10 +1,10 @@
-#ifndef EXPLORER_FILE_H
-#define EXPLORER_FILE_H
+#ifndef FILE_RECORD_H
+#define FILE_RECORD_H
 
 // Standard Library Inclusions
 #include <string>
 
-struct ExplorerFile {
+struct FileRecord {
     std::string file_path;
     std::string file_name;
     int file_size;
@@ -24,4 +24,4 @@ struct ExplorerFile {
     int auto_key;
 };
 
-#endif
+#endif // FILE_RECORD_H

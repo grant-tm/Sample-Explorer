@@ -22,7 +22,7 @@ void render_ui (UIState *ui_state) {
             result[i] = format_string("", UI_RESULT_WIDTH);
         } else {
             int index = ui_state->file_scroll;
-            struct ExplorerFile file = ui_state->files[index];
+            struct FileRecord file = ui_state->files[index];
             result[i] = format_string(file.file_name, UI_RESULT_WIDTH
             );
         }
@@ -49,7 +49,7 @@ void render_ui (UIState *ui_state) {
     std::cerr << ui << std::endl;
 }
 
-void print_search_results (std::vector<struct ExplorerFile> results, int n) {
+void print_search_results (std::vector<struct FileRecord> results, int n) {
     int print_limit = static_cast<int>(results.size()) > n ? n : results.size();
     for(int i=0; i<print_limit; i++) {
         fprintf(stderr, "[%d] %s\n", i, results[i].file_name.c_str());

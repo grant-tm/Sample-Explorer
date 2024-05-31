@@ -1,5 +1,5 @@
-#ifndef KEY_SIGNITURE_DETECTOR_H
-#define KEY_SIGNITURE_DETECTOR_H
+#ifndef DETECT_KEY_H
+#define DETECT_KEY_H
 
 #include <vector>
 #include <string>
@@ -71,4 +71,4 @@ void process_segment (const std::vector<float> *samples, int start, int sample_r
 
 int kdet_detect_key (std::string path);
 
-#endif // KEY_SIGNITURE_DETECTOR_H
+#endif // DETECT_KEY_H
